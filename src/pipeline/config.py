@@ -27,6 +27,16 @@ class Settings(BaseSettings):
     # Redis
     redis_url: str = "redis://localhost:6379/0"
 
+    # MongoDB
+    mongo_url: str = "mongodb://admin:changeme@localhost:27017"
+
+    # MinIO
+    minio_endpoint: str = "localhost:9000"
+    minio_root_user: str = "minioadmin"
+    minio_root_password: str = "minioadmin"
+    minio_bucket: str = "pipeline-artifacts"
+    minio_secure: bool = False
+
 
 @lru_cache
 def get_settings() -> Settings:

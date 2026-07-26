@@ -14,3 +14,5 @@ Requires-Dist: langsmith>=0.1
 Requires-Dist: redis>=5.0
 Requires-Dist: fal-client>=0.5
 Requires-Dist: ffmpeg-python>=0.2
+Requires-Dist: pymongo>=4.17.0
+Requires-Dist: minio>=7.2.20

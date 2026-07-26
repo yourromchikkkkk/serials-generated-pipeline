@@ -19,6 +19,8 @@ dependencies = [
     "redis>=5.0",
     "fal-client>=0.5",
     "ffmpeg-python>=0.2",
+    "pymongo>=4.17.0",
+    "minio>=7.2.20",
 ]
 
 [dependency-groups]

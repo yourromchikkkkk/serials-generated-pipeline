@@ -3,14 +3,15 @@
 ## Stack
 
 LangGraph (orchestration) · LiteLLM (LLM routing) · fal.ai (image/video/voice/lip-sync
-generation) · FFmpeg (assembly) · Redis (per-shot parallelism).
+generation) · FFmpeg (assembly) · Redis (per-shot parallelism) · MongoDB (result storage) ·
+MinIO (object storage).
 
 ## Setup
 
 ```bash
 uv sync                      # installs deps + dev tools into .venv
 cp .env.example .env         # fill in FAL_KEY, OPENAI_API_KEY / ANTHROPIC_API_KEY, etc.
-docker compose up -d         # starts the litellm proxy (:4000) and redis (:6379)
+docker compose up -d         # starts litellm (:4000), redis (:6379), mongodb (:27017), minio (:9000/:9001)
 ```
 
 ## Usage
@@ -24,7 +25,7 @@ uv run pipeline --help
 ```
 config/litellm/   LiteLLM proxy model config
 src/pipeline/      Application package (config, clients, CLI)
-docker-compose.yml LiteLLM + Redis containers
+docker-compose.yml LiteLLM + Redis + MongoDB + MinIO containers
 ```
 
 ## Status
