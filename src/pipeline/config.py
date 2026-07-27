@@ -32,6 +32,7 @@ class Settings(BaseSettings):
 
     # MongoDB
     mongo_url: str = "mongodb://admin:changeme@localhost:27017"
+    mongo_database: str = "pipeline"
 
     # MinIO
     minio_endpoint: str = "localhost:9000"

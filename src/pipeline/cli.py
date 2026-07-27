@@ -5,9 +5,12 @@ import json
 import sys
 from pathlib import Path
 
+from langgraph.types import Command
+
 from pipeline.config import configure_langsmith
 from pipeline.graph.base import build_graph
 from pipeline.graph.state import Run
+from pipeline.storage import save_run
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -18,6 +21,16 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser = subparsers.add_parser("run", help="Run the pipeline on a script idea")
     run_parser.add_argument("script", nargs="?", help="1-3 sentence idea, or full script text")
     run_parser.add_argument("--file", "-f", type=Path, help="Path to a file containing the script text")
+    run_parser.add_argument(
+        "--enhance-script",
+        action="store_true",
+        help="Enable the optional script enhancer stage (asks clarifying questions before proceeding)",
+    )
+    run_parser.add_argument(
+        "--revision-limit",
+        type=int,
+        help="Max script enhancer rounds before proceeding with the latest version",
+    )
 
     return parser
 
@@ -45,15 +58,27 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "run":
         configure_langsmith()
         script_text = _read_script(args)
-        run = Run(script_text=script_text)
+        parameters = {"enable_script_enhancer": args.enhance_script}
+        if args.revision_limit is not None:
+            parameters["revision_count_limit"] = args.revision_limit
+        run = Run(script_text=script_text, parameters=parameters)
         graph = build_graph()
+        config = {
+            "run_name": "pipeline_run",
+            "tags": ["pipeline"],
+            "metadata": {"run_id": run.run_id},
+            "configurable": {"thread_id": run.run_id},
+        }
         try:
-            result = graph.invoke(
-                run,
-                config={"run_name": "pipeline_run", "tags": ["pipeline"], "metadata": {"run_id": run.run_id}},
-            )
+            result = graph.invoke(run, config=config)
+            while "__interrupt__" in result:
+                questions = result["__interrupt__"][0].value["clarifying_questions"]
+                print("\nThe script enhancer has some clarifying questions:")
+                answers = [input(f"{question}\n> ") for question in questions]
+                result = graph.invoke(Command(resume=answers), config=config)
         except ValueError as exc:
             raise SystemExit(f"error: {exc}") from None
+        save_run(Run.model_validate({k: v for k, v in result.items() if k != "__interrupt__"}))
         print(json.dumps(result, indent=2, default=str))
         return 0
 
