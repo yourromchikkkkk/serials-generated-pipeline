@@ -5,6 +5,7 @@ import json
 import sys
 from pathlib import Path
 
+from pipeline.config import configure_langsmith
 from pipeline.graph.base import build_graph
 from pipeline.graph.state import Run
 
@@ -42,10 +43,15 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "run":
+        configure_langsmith()
         script_text = _read_script(args)
+        run = Run(script_text=script_text)
         graph = build_graph()
         try:
-            result = graph.invoke(Run(script_text=script_text))
+            result = graph.invoke(
+                run,
+                config={"run_name": "pipeline_run", "tags": ["pipeline"], "metadata": {"run_id": run.run_id}},
+            )
         except ValueError as exc:
             raise SystemExit(f"error: {exc}") from None
         print(json.dumps(result, indent=2, default=str))

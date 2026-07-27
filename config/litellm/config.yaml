@@ -18,5 +18,6 @@ general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
 
 litellm_settings:
+  callbacks: ["langsmith"]
   drop_params: true
   set_verbose: false

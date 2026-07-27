@@ -1,5 +1,7 @@
 """Single point of truth for env loading and secrets. Every client reads config from here."""
 
+import os
+import sys
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -20,9 +22,10 @@ class Settings(BaseSettings):
     fal_key: str | None = None
 
     # LangSmith
-    langchain_tracing_v2: bool = False
-    langchain_api_key: str | None = None
-    langchain_project: str = "serials-generated-pipeline"
+    langsmith_tracing: bool = False
+    langsmith_api_key: str | None = None
+    langsmith_project: str = "serials-generated-pipeline"
+    langsmith_endpoint: str | None = None
 
     # Redis
     redis_url: str = "redis://localhost:6379/0"
@@ -41,3 +44,19 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def configure_langsmith() -> None:
+    """Export LangSmith env vars so langsmith/langchain-core (which read os.environ directly,
+    not our Settings object) actually pick them up for tracing our own graph runs."""
+    settings = get_settings()
+    if not settings.langsmith_tracing:
+        return
+    if not settings.langsmith_api_key:
+        print("warning: LANGSMITH_TRACING is on but LANGSMITH_API_KEY is not set, skipping trace export", file=sys.stderr)
+        return
+    os.environ["LANGSMITH_TRACING"] = "true"
+    os.environ["LANGSMITH_API_KEY"] = settings.langsmith_api_key
+    os.environ["LANGSMITH_PROJECT"] = settings.langsmith_project
+    if settings.langsmith_endpoint:
+        os.environ["LANGSMITH_ENDPOINT"] = settings.langsmith_endpoint
