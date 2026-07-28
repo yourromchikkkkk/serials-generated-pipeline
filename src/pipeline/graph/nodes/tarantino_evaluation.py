@@ -6,10 +6,8 @@ from langgraph.types import interrupt
 from langsmith import traceable
 
 from pipeline.clients.litellm_client import chat_completion
+from pipeline.config import get_settings
 from pipeline.graph.state import Run, TarantinoEvaluation
-
-# TODO: replace with anthropic/claude-haiku
-MODEL = "openai/gpt-4o-mini"
 
 EVALUATE = "tarantino_evaluate"
 REWRITE = "tarantino_rewrite"
@@ -29,7 +27,7 @@ _RUBRIC_PROMPT = (
 @traceable(run_type="llm", name="tarantino_evaluation.score")
 def _score_script(script_text: str) -> tuple[float, str]:
     response = chat_completion(
-        model=MODEL,
+        model=get_settings().tarantino_model,
         messages=[
             {"role": "system", "content": _RUBRIC_PROMPT},
             {"role": "user", "content": script_text},
@@ -53,7 +51,7 @@ def _score_script(script_text: str) -> tuple[float, str]:
 @traceable(run_type="llm", name="tarantino_evaluation.rewrite")
 def _auto_rewrite(script_text: str, feedback: str) -> str:
     response = chat_completion(
-        model=MODEL,
+        model=get_settings().tarantino_model,
         messages=[
             {
                 "role": "system",

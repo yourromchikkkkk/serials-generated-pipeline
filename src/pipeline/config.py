@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
 
+    # LLM models per pipeline stage (routed through the LiteLLM proxy, see config/litellm/config.yaml)
+    script_enhancer_model: str = "anthropic/claude-haiku"
+    tarantino_model: str = "anthropic/claude-haiku"
+    shot_list_generation_model: str = "anthropic/claude-haiku"
+
     # fal.ai
     fal_key: str | None = None
 

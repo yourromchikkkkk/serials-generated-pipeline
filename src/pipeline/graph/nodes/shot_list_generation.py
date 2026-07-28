@@ -5,10 +5,8 @@ from langsmith import traceable
 from pydantic import BaseModel, Field, ValidationError
 
 from pipeline.clients.litellm_client import chat_completion
+from pipeline.config import get_settings
 from pipeline.graph.state import Run, ShotSpec
-
-# TODO: replace with anthropic/claude-haiku
-MODEL = "openai/gpt-4o-mini"
 
 GENERATE = "shot_list_generate"
 
@@ -52,7 +50,7 @@ def _generate_shots(script_text: str, num_shots: int | None, target_duration_sec
         user_content = f"{script_text}\n\nConstraints:\n" + "\n".join(constraints)
 
     response = chat_completion(
-        model=MODEL,
+        model=get_settings().shot_list_generation_model,
         messages=[
             {"role": "system", "content": _SYSTEM_PROMPT},
             {"role": "user", "content": user_content},

@@ -5,10 +5,8 @@ from langgraph.types import interrupt
 from langsmith import traceable
 
 from pipeline.clients.litellm_client import chat_completion
+from pipeline.config import get_settings
 from pipeline.graph.state import Run, ScriptRevision
-
-# TODO: replace with anthropic/claude-haiku
-MODEL = "openai/gpt-4o-mini"
 
 PREPARE = "script_enhancer_prepare"
 AWAIT_ANSWERS = "script_enhancer_await_answers"
@@ -17,7 +15,7 @@ AWAIT_ANSWERS = "script_enhancer_await_answers"
 @traceable(run_type="llm", name="script_enhancer.generate_clarifying_questions")
 def _generate_clarifying_questions(script_text: str) -> list[str]:
     response = chat_completion(
-        model=MODEL,
+        model=get_settings().script_enhancer_model,
         messages=[
             {
                 "role": "system",
@@ -39,7 +37,7 @@ def _generate_clarifying_questions(script_text: str) -> list[str]:
 def _merge_answers(script_text: str, questions: list[str], answers: list[str]) -> str:
     qa_pairs = "\n".join(f"Q: {q}\nA: {a}" for q, a in zip(questions, answers))
     response = chat_completion(
-        model=MODEL,
+        model=get_settings().script_enhancer_model,
         messages=[
             {
                 "role": "system",
