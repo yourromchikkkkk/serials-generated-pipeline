@@ -19,6 +19,18 @@ class ScriptRevision(BaseModel):
     revision_count: int
 
 
+class TarantinoEvaluation(BaseModel):
+    """Record of one Tarantino quality-gate scoring round."""
+
+    run_id: str
+    script_revision_id: str
+    score: float
+    feedback_text: str
+    threshold_used: float
+    decision: str
+    tarantino_retry_count: int
+
+
 class Run(BaseModel):
     run_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     script_text: str
@@ -29,6 +41,7 @@ class Run(BaseModel):
     revision_count: int = 0
     script_revisions: list[ScriptRevision] = Field(default_factory=list)
     clarifying_questions: list[str] | None = None
+    tarantino_evaluations: list[TarantinoEvaluation] = Field(default_factory=list)
     tarantino_retry_count: int = 0
     shot_validation_retry_count: int = 0
     per_asset_retry_count: int = 0

@@ -31,6 +31,21 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         help="Max script enhancer rounds before proceeding with the latest version",
     )
+    run_parser.add_argument(
+        "--tarantino-threshold",
+        type=float,
+        help="Minimum Tarantino quality-gate score required to pass (0-1)",
+    )
+    run_parser.add_argument(
+        "--tarantino-retry-limit",
+        type=int,
+        help="Max Tarantino evaluation rounds before shipping the best-scoring version",
+    )
+    run_parser.add_argument(
+        "--enable-auto-rewriter",
+        action="store_true",
+        help="Auto-rewrite the script on a failed Tarantino gate instead of asking the user",
+    )
 
     return parser
 
@@ -58,9 +73,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "run":
         configure_langsmith()
         script_text = _read_script(args)
-        parameters = {"enable_script_enhancer": args.enhance_script}
+        parameters = {
+            "enable_script_enhancer": args.enhance_script,
+            "enable_auto_rewriter": args.enable_auto_rewriter,
+        }
         if args.revision_limit is not None:
             parameters["revision_count_limit"] = args.revision_limit
+        if args.tarantino_threshold is not None:
+            parameters["tarantino_score_threshold"] = args.tarantino_threshold
+        if args.tarantino_retry_limit is not None:
+            parameters["tarantino_retry_count_limit"] = args.tarantino_retry_limit
         run = Run(script_text=script_text, parameters=parameters)
         graph = build_graph()
         config = {
@@ -72,10 +94,21 @@ def main(argv: list[str] | None = None) -> int:
         try:
             result = graph.invoke(run, config=config)
             while "__interrupt__" in result:
-                questions = result["__interrupt__"][0].value["clarifying_questions"]
-                print("\nThe script enhancer has some clarifying questions:")
-                answers = [input(f"{question}\n> ") for question in questions]
-                result = graph.invoke(Command(resume=answers), config=config)
+                payload = result["__interrupt__"][0].value
+                if "clarifying_questions" in payload:
+                    print("\nThe script enhancer has some clarifying questions:")
+                    answers = [input(f"{question}\n> ") for question in payload["clarifying_questions"]]
+                    result = graph.invoke(Command(resume=answers), config=config)
+                else:
+                    print(f"\nTarantino gate score: {payload['score']}")
+                    print(f"Feedback: {payload['feedback']}")
+                    choice = input("Approve and proceed anyway, or revise the script? [approve/revise]\n> ").strip().lower()
+                    if choice == "approve":
+                        resume = {"decision": "approve"}
+                    else:
+                        revised_text = input("Enter the revised script text:\n> ")
+                        resume = {"decision": "revise", "revised_text": revised_text}
+                    result = graph.invoke(Command(resume=resume), config=config)
         except ValueError as exc:
             raise SystemExit(f"error: {exc}") from None
         save_run(Run.model_validate({k: v for k, v in result.items() if k != "__interrupt__"}))
