@@ -55,6 +55,57 @@ class ShotValidation(BaseModel):
     shot_validation_retry_count: int
 
 
+class CharacterReference(BaseModel):
+    """Character reference image for one shot — generated once per character and cached/reused
+    across the rest of the episode."""
+
+    shot_id: str
+    character_id: str
+    image_uri: str
+    seed: int
+    character_gate_score: float | None
+    cached: bool
+
+
+class VideoGeneration(BaseModel):
+    """Record of one video-generation attempt for a shot."""
+
+    shot_id: str
+    provider: str
+    attempt_number: int
+    video_uri: str
+    tier1_result: str
+    tier2_score: float | None
+    character_consistency_score: float | None
+    retry_count: int
+    status: str
+
+
+class VoiceGeneration(BaseModel):
+    """Record of one voice-generation attempt for a shot."""
+
+    shot_id: str
+    provider: str
+    voice_id: str | None
+    audio_uri: str
+    source_text: str
+    stt_transcript: str
+    verbatim_match: bool
+    retry_count: int
+    status: str
+
+
+class ShotReview(BaseModel):
+    """Record of one shot-review decision — the optional second HITL checkpoint, letting a human
+    reject a single asset (character/video/voice) rather than the whole shot."""
+
+    shot_id: str
+    reviewed_by: str | None
+    decision: str
+    rejected_asset: str | None
+    reviewed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 class Run(BaseModel):
     run_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     script_text: str
@@ -70,5 +121,9 @@ class Run(BaseModel):
     shot_list: list[ShotSpec] = Field(default_factory=list)
     shot_validations: list[ShotValidation] = Field(default_factory=list)
     shot_validation_retry_count: int = 0
+    character_references: list[CharacterReference] = Field(default_factory=list)
+    video_generations: list[VideoGeneration] = Field(default_factory=list)
+    voice_generations: list[VoiceGeneration] = Field(default_factory=list)
     per_asset_retry_count: int = 0
+    shot_reviews: list[ShotReview] = Field(default_factory=list)
     lipsync_retry_count: int = 0

@@ -22,9 +22,14 @@ class Settings(BaseSettings):
     script_enhancer_model: str = "anthropic/claude-haiku"
     tarantino_model: str = "anthropic/claude-haiku"
     shot_list_generation_model: str = "anthropic/claude-haiku"
+    vision_gate_model: str = "openai/gpt-4o-mini"
+    stt_model: str = "gpt-4o-mini-transcribe"
 
     # fal.ai
     fal_key: str | None = None
+    fal_character_model: str = "fal-ai/flux/dev"
+    fal_video_model: str = "fal-ai/kling-video/v1.6/standard/image-to-video"
+    fal_voice_model: str = "fal-ai/elevenlabs/tts/turbo-v2.5"
 
     # LangSmith
     langsmith_tracing: bool = False

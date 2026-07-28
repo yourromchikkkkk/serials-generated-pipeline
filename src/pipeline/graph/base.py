@@ -7,8 +7,10 @@ from langgraph.graph.state import CompiledStateGraph
 
 from pipeline.graph.nodes import (
     load_script,
+    per_shot_generation,
     script_enhancer,
     shot_list_generation,
+    shot_review,
     shot_validation,
     tarantino_evaluation,
 )
@@ -25,6 +27,8 @@ def build_graph() -> CompiledStateGraph:
     graph.add_node(tarantino_evaluation.AWAIT_USER_DECISION, tarantino_evaluation.await_user_decision)
     graph.add_node(shot_list_generation.GENERATE, shot_list_generation.generate)
     graph.add_node(shot_validation.AWAIT_APPROVAL, shot_validation.await_approval)
+    graph.add_node(per_shot_generation.GENERATE, per_shot_generation.generate)
+    graph.add_node(shot_review.AWAIT_REVIEW, shot_review.await_review)
 
     graph.add_edge(START, "load_script")
     graph.add_edge("load_script", script_enhancer.PREPARE)
@@ -54,7 +58,13 @@ def build_graph() -> CompiledStateGraph:
     graph.add_conditional_edges(
         shot_validation.AWAIT_APPROVAL,
         shot_validation.route_after_await_approval,
-        {shot_validation.AWAIT_APPROVAL: shot_validation.AWAIT_APPROVAL, END: END},
+        {shot_validation.AWAIT_APPROVAL: shot_validation.AWAIT_APPROVAL, END: per_shot_generation.GENERATE},
+    )
+    graph.add_edge(per_shot_generation.GENERATE, shot_review.AWAIT_REVIEW)
+    graph.add_conditional_edges(
+        shot_review.AWAIT_REVIEW,
+        shot_review.route_after_await_review,
+        {shot_review.AWAIT_REVIEW: shot_review.AWAIT_REVIEW, END: END},
     )
 
     return graph.compile(checkpointer=MemorySaver())
