@@ -71,7 +71,17 @@ def _auto_rewrite(script_text: str, feedback: str) -> str:
 def evaluate(run: Run) -> dict:
     """Scores the current script and decides pass / routed_to_rewriter / routed_to_user, bounded
     by `tarantino_retry_count_limit`. Runs again after `rewrite` or a user-requested revision, so
-    the retry count is checked before deciding to loop rather than only once up front."""
+    the retry count is checked before deciding to loop rather than only once up front.
+
+    Gated by `enable_tarantino_evaluation` (default on) — unlike the script enhancer this stage
+    is on by default, since it's the cheapest place to catch a bad idea before paid generation.
+
+    If `tarantino_retry_count_limit` is exhausted and the script still hasn't passed, the run
+    does not ship anyway — it stops for a mandatory human decision, same as a first-attempt
+    failure with auto-rewriter disabled."""
+    if not run.parameters.get("enable_tarantino_evaluation", True):
+        return {"status": "tarantino_skipped"}
+
     threshold = run.parameters.get("tarantino_score_threshold", DEFAULT_SCORE_THRESHOLD)
     score, feedback = _score_script(run.script_text)
 
@@ -81,8 +91,8 @@ def evaluate(run: Run) -> dict:
     else:
         retry_limit = run.parameters.get("tarantino_retry_count_limit")
         if retry_limit is not None and run.tarantino_retry_count >= retry_limit:
-            decision = "pass"
-            status = "tarantino_shipped_below_threshold"
+            decision = "routed_to_user"
+            status = "tarantino_retry_limit_reached"
         elif run.parameters.get("enable_auto_rewriter", False):
             decision = "routed_to_rewriter"
             status = "tarantino_routed_to_rewriter"
@@ -117,7 +127,10 @@ def rewrite(run: Run) -> dict:
 
 def await_user_decision(run: Run) -> dict:
     evaluation = run.tarantino_evaluations[-1]
-    decision = interrupt({"score": evaluation.score, "feedback": evaluation.feedback_text})
+    payload = {"score": evaluation.score, "feedback": evaluation.feedback_text}
+    if run.status == "tarantino_retry_limit_reached":
+        payload["retry_limit_reached"] = True
+    decision = interrupt(payload)
     if not isinstance(decision, dict) or decision.get("decision") not in ("approve", "revise"):
         raise ValueError("tarantino evaluation expected {'decision': 'approve' | 'revise', ...}")
 
@@ -135,7 +148,7 @@ def await_user_decision(run: Run) -> dict:
 def route_after_evaluate(run: Run) -> str:
     if run.status == "tarantino_routed_to_rewriter":
         return REWRITE
-    if run.status == "tarantino_routed_to_user":
+    if run.status in ("tarantino_routed_to_user", "tarantino_retry_limit_reached"):
         return AWAIT_USER_DECISION
     return END
 

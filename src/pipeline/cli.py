@@ -46,6 +46,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Auto-rewrite the script on a failed Tarantino gate instead of asking the user",
     )
+    run_parser.add_argument(
+        "--skip-tarantino-evaluation",
+        action="store_true",
+        help="Skip the Tarantino quality-gate stage entirely and proceed straight to shot-list generation",
+    )
 
     return parser
 
@@ -76,6 +81,7 @@ def main(argv: list[str] | None = None) -> int:
         parameters = {
             "enable_script_enhancer": args.enhance_script,
             "enable_auto_rewriter": args.enable_auto_rewriter,
+            "enable_tarantino_evaluation": not args.skip_tarantino_evaluation,
         }
         if args.revision_limit is not None:
             parameters["revision_count_limit"] = args.revision_limit
@@ -99,8 +105,26 @@ def main(argv: list[str] | None = None) -> int:
                     print("\nThe script enhancer has some clarifying questions:")
                     answers = [input(f"{question}\n> ") for question in payload["clarifying_questions"]]
                     result = graph.invoke(Command(resume=answers), config=config)
+                elif "shot_list" in payload:
+                    print("\nProposed shot list:")
+                    for i, shot in enumerate(payload["shot_list"]):
+                        print(f"  [{i}] {shot['scene_description']} (camera: {shot['camera']}, {shot['duration_sec']}s)")
+                        print(f"      dialogue: {shot['dialogue_line']!r}, characters: {shot['character_refs']}")
+                    choice = input("Approve the shot list, or edit it? [approve/edit]\n> ").strip().lower()
+                    approved_by = input("Approved by (name/id):\n> ").strip()
+                    if choice == "approve":
+                        resume = {"decision": "approve", "approved_by": approved_by}
+                    else:
+                        edits_raw = input(
+                            "Enter the revised shot list as a JSON array of objects with "
+                            "scene_description, camera, dialogue_line, duration_sec, character_refs:\n> "
+                        )
+                        resume = {"decision": "edit", "approved_by": approved_by, "edits": json.loads(edits_raw)}
+                    result = graph.invoke(Command(resume=resume), config=config)
                 else:
-                    print(f"\nTarantino gate score: {payload['score']}")
+                    if payload.get("retry_limit_reached"):
+                        print("\nTarantino retry limit reached — the script still doesn't meet the quality bar.")
+                    print(f"Tarantino gate score: {payload['score']}")
                     print(f"Feedback: {payload['feedback']}")
                     choice = input("Approve and proceed anyway, or revise the script? [approve/revise]\n> ").strip().lower()
                     if choice == "approve":
