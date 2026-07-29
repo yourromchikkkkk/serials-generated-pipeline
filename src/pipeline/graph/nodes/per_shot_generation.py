@@ -123,7 +123,7 @@ def _probe(video_bytes: bytes) -> dict:
         return ffmpeg.probe(str(path))
 
 
-def _extract_frame(video_bytes: bytes, at_sec: float) -> bytes:
+def extract_frame(video_bytes: bytes, at_sec: float) -> bytes:
     _require_ffmpeg_binary("ffmpeg")
     with tempfile.TemporaryDirectory() as tmp:
         src = Path(tmp) / "clip.mp4"
@@ -162,7 +162,7 @@ def _normalize(text: str) -> str:
     return " ".join(text.strip().lower().split())
 
 
-def _select_attempt(run: Run, attempts: list, key):
+def select_attempt(run: Run, attempts: list, key):
     """Picks which non-passing attempt to ship once `per_asset_retry_limit` is exhausted, per
     `exit_strategy` (best_scoring_attempt, the default, vs last_attempt)."""
     if run.parameters.get("exit_strategy") == "last_attempt":
@@ -209,7 +209,7 @@ def _generate_character(run: Run, shot: ShotSpec, character_id: str, cache: dict
             return candidate
         attempts.append(candidate)
 
-    result = _select_attempt(run, attempts, key=lambda c: c.character_gate_score or 0)
+    result = select_attempt(run, attempts, key=lambda c: c.character_gate_score or 0)
     with lock:
         cache.setdefault(character_id, result)
     return result
@@ -232,7 +232,7 @@ def _generate_video(run: Run, shot: ShotSpec, character_image_bytes: bytes | Non
         tier2_score = None
         consistency_score = None
         if tier1_result == "pass" and (content_threshold is not None or consistency_threshold is not None):
-            frame_bytes = _extract_frame(video_bytes, shot.duration_sec / 2)
+            frame_bytes = extract_frame(video_bytes, shot.duration_sec / 2)
             if content_threshold is not None:
                 tier2_score = _vision_score(frame_bytes, "image/jpeg", shot.scene_description)
             if consistency_threshold is not None and character_image_bytes is not None:
@@ -262,7 +262,7 @@ def _generate_video(run: Run, shot: ShotSpec, character_image_bytes: bytes | Non
             return candidate
         attempts.append(candidate)
 
-    result = _select_attempt(run, attempts, key=lambda c: (c.tier2_score or 0) + (c.character_consistency_score or 0))
+    result = select_attempt(run, attempts, key=lambda c: (c.tier2_score or 0) + (c.character_consistency_score or 0))
     result.status = "flagged"
     return result
 
@@ -296,7 +296,7 @@ def _generate_voice(run: Run, shot: ShotSpec) -> VoiceGeneration:
             return candidate
         attempts.append(candidate)
 
-    result = _select_attempt(run, attempts, key=lambda c: 1 if c.verbatim_match else 0)
+    result = select_attempt(run, attempts, key=lambda c: 1 if c.verbatim_match else 0)
     result.status = "flagged"
     return result
 

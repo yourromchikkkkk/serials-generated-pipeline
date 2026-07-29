@@ -106,6 +106,19 @@ class ShotReview(BaseModel):
     reviewed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+class LipsyncResult(BaseModel):
+    """Record of one lip-sync attempt for a shot — merges validated video and audio, then
+    verifies the merge with a sync-confidence score."""
+
+    shot_id: str
+    lipsync_provider: str
+    attempt_number: int
+    synced_video_uri: str
+    sync_confidence_score: float | None
+    retry_count: int
+    status: str
+
+
 class Run(BaseModel):
     run_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     script_text: str
@@ -126,4 +139,5 @@ class Run(BaseModel):
     voice_generations: list[VoiceGeneration] = Field(default_factory=list)
     per_asset_retry_count: int = 0
     shot_reviews: list[ShotReview] = Field(default_factory=list)
+    lipsync_results: list[LipsyncResult] = Field(default_factory=list)
     lipsync_retry_count: int = 0

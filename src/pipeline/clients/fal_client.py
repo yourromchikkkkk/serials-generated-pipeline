@@ -1,10 +1,11 @@
-"""fal.ai client factory + thin generation wrappers (character/video/voice generation).
+"""fal.ai client factory + thin generation wrappers (character/video/voice/lip-sync generation).
 
 The exact argument/response shape of each fal.ai app varies per model — the wrappers below
 assume the conventional shapes documented for FAL_CHARACTER_MODEL (flux-style text-to-image:
-`images: [{url, seed}]`), FAL_VIDEO_MODEL (image-to-video: `video: {url}`), and FAL_VOICE_MODEL
-(TTS: `audio: {url}`). Verify against the fal.ai catalog entry for whichever model id is
-configured in .env if it's swapped for a different provider."""
+`images: [{url, seed}]`), FAL_VIDEO_MODEL (image-to-video: `video: {url}`), FAL_VOICE_MODEL
+(TTS: `audio: {url}`), and FAL_LIPSYNC_MODEL (video+audio merge: `video: {url}`). Verify against
+the fal.ai catalog entry for whichever model id is configured in .env if it's swapped for a
+different provider."""
 
 import base64
 from functools import lru_cache
@@ -63,3 +64,13 @@ def generate_voice(text: str, voice_id: str | None = None) -> str:
         arguments["voice"] = voice_id
     result = get_fal_client().subscribe(get_settings().fal_voice_model, arguments=arguments)
     return result["audio"]["url"]
+
+
+def generate_lipsync(video_data_uri: str, audio_data_uri: str) -> str:
+    """Merges video and audio into a lip-synced clip; returns the result's media url. Both
+    inputs must be `data:` URIs — see `generate_video`'s note on why plain MinIO URLs don't work."""
+    result = get_fal_client().subscribe(
+        get_settings().fal_lipsync_model,
+        arguments={"video_url": video_data_uri, "audio_url": audio_data_uri},
+    )
+    return result["video"]["url"]

@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     fal_character_model: str = "fal-ai/flux/dev"
     fal_video_model: str = "fal-ai/kling-video/v1.6/standard/image-to-video"
     fal_voice_model: str = "fal-ai/elevenlabs/tts/turbo-v2.5"
+    fal_lipsync_model: str = "fal-ai/sync-lipsync"
 
     # LangSmith
     langsmith_tracing: bool = False

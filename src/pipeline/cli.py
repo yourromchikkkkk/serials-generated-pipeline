@@ -76,6 +76,16 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Enable the optional shot review stage (inspect generated video/audio per shot before assembly)",
     )
+    run_parser.add_argument(
+        "--lipsync-retry-limit",
+        type=int,
+        help="Max retries for the lip-sync gate per shot before flagging it for review",
+    )
+    run_parser.add_argument(
+        "--lipsync-confidence-threshold",
+        type=float,
+        help="Sync-confidence cutoff for the lip-sync gate (0-1)",
+    )
 
     return parser
 
@@ -123,6 +133,10 @@ def main(argv: list[str] | None = None) -> int:
             parameters["character_consistency_threshold"] = args.character_consistency_threshold
         if args.video_content_threshold is not None:
             parameters["video_content_score_threshold"] = args.video_content_threshold
+        if args.lipsync_retry_limit is not None:
+            parameters["lipsync_retry_limit"] = args.lipsync_retry_limit
+        if args.lipsync_confidence_threshold is not None:
+            parameters["lipsync_confidence_threshold"] = args.lipsync_confidence_threshold
         run = Run(script_text=script_text, parameters=parameters)
         graph = build_graph()
         config = {
