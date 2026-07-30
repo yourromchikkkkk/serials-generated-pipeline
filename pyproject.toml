@@ -16,7 +16,6 @@ dependencies = [
     "pydantic-settings>=2.4",
     "python-dotenv>=1.0",
     "langsmith>=0.1",
-    "redis>=5.0",
     "fal-client>=0.5",
     "ffmpeg-python>=0.2",
     "pymongo>=4.17.0",

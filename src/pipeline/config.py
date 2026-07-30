@@ -38,9 +38,6 @@ class Settings(BaseSettings):
     langsmith_project: str = "serials-generated-pipeline"
     langsmith_endpoint: str | None = None
 
-    # Redis
-    redis_url: str = "redis://localhost:6379/0"
-
     # MongoDB
     mongo_url: str = "mongodb://admin:changeme@localhost:27017"
     mongo_database: str = "pipeline"
