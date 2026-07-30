@@ -62,17 +62,6 @@ src/pipeline/cli.py       CLI entry point
 docker-compose.yml        LiteLLM + MongoDB + MinIO containers
 ```
 
-## Status
-
-Implemented stages: script loading, script enhancer (optional HITL), Tarantino quality gate
-(skippable, with a mandatory human decision if the rewriter's retries are exhausted instead of
-auto-shipping), shot-list generation (strict-schema LLM output), shot validation (mandatory
-HITL), per-shot generation (character/video/voice, each independently gated and retried), shot
-review (optional HITL — reviewers get signed MinIO URLs for the generated video/audio and can
-reject a single asset for targeted regeneration), the lip-sync gate (merges each shot's
-video+audio, gated on a sync-confidence score), and final assembly (stitches synced clips in
-order, normalizes codec/frame rate, uploads the result to MinIO, and prints a presigned URL).
-
 ## Compromises
 
 Pragmatic tradeoffs made to get an end-to-end pipeline working.
