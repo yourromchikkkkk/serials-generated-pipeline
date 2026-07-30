@@ -6,6 +6,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from pipeline.graph.nodes import (
+    assembly,
     lipsync,
     load_script,
     per_shot_generation,
@@ -31,6 +32,7 @@ def build_graph() -> CompiledStateGraph:
     graph.add_node(per_shot_generation.GENERATE, per_shot_generation.generate)
     graph.add_node(shot_review.AWAIT_REVIEW, shot_review.await_review)
     graph.add_node(lipsync.GATE, lipsync.generate)
+    graph.add_node(assembly.ASSEMBLE, assembly.assemble)
 
     graph.add_edge(START, "load_script")
     graph.add_edge("load_script", script_enhancer.PREPARE)
@@ -68,6 +70,7 @@ def build_graph() -> CompiledStateGraph:
         shot_review.route_after_await_review,
         {shot_review.AWAIT_REVIEW: shot_review.AWAIT_REVIEW, END: lipsync.GATE},
     )
-    graph.add_edge(lipsync.GATE, END)
+    graph.add_edge(lipsync.GATE, assembly.ASSEMBLE)
+    graph.add_edge(assembly.ASSEMBLE, END)
 
     return graph.compile(checkpointer=MemorySaver())

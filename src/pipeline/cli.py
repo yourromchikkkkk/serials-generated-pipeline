@@ -7,6 +7,7 @@ from pathlib import Path
 
 from langgraph.types import Command
 
+from pipeline.clients import minio_client
 from pipeline.config import configure_langsmith
 from pipeline.graph.base import build_graph
 from pipeline.graph.state import Run
@@ -198,8 +199,12 @@ def main(argv: list[str] | None = None) -> int:
                     result = graph.invoke(Command(resume=resume), config=config)
         except ValueError as exc:
             raise SystemExit(f"error: {exc}") from None
-        save_run(Run.model_validate({k: v for k, v in result.items() if k != "__interrupt__"}))
+        run_result = Run.model_validate({k: v for k, v in result.items() if k != "__interrupt__"})
+        save_run(run_result)
         print(json.dumps(result, indent=2, default=str))
+        if run_result.assembly_result is not None:
+            final_url = minio_client.presigned_url(run_result.assembly_result.video_uri, expires_minutes=6 * 24 * 60)
+            print(f"\nFinal video: {final_url}")
         return 0
 
     return 1

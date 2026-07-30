@@ -215,13 +215,21 @@ def _generate_character(run: Run, shot: ShotSpec, character_id: str, cache: dict
     return result
 
 
-def _generate_video(run: Run, shot: ShotSpec, character_image_bytes: bytes | None) -> VideoGeneration:
+def _generate_video(
+    run: Run, shot: ShotSpec, image_bytes: bytes, character_reference_bytes: bytes | None
+) -> VideoGeneration:
+    """`image_bytes` is the starting frame handed to the image-to-video provider — always
+    present, since the provider requires one on every call. `character_reference_bytes` is only
+    set when that starting frame is a real cached character reference; for b-roll/establishing
+    shots with no character, it's None so the consistency check (which would otherwise compare
+    the output against an arbitrary generated scene image) is skipped rather than run on
+    meaningless data."""
     provider = run.parameters.get("video_provider", DEFAULT_VIDEO_PROVIDER)
     content_threshold = run.parameters.get("video_content_score_threshold")
     consistency_threshold = run.parameters.get("character_consistency_threshold")
     max_attempts = _max_attempts(run)
 
-    image_data_uri = fal_client.to_data_uri(character_image_bytes, "image/png") if character_image_bytes else ""
+    image_data_uri = fal_client.to_data_uri(image_bytes, "image/png")
 
     attempts: list[VideoGeneration] = []
     for attempt in range(max_attempts):
@@ -235,8 +243,8 @@ def _generate_video(run: Run, shot: ShotSpec, character_image_bytes: bytes | Non
             frame_bytes = extract_frame(video_bytes, shot.duration_sec / 2)
             if content_threshold is not None:
                 tier2_score = _vision_score(frame_bytes, "image/jpeg", shot.scene_description)
-            if consistency_threshold is not None and character_image_bytes is not None:
-                consistency_score = _consistency_score(character_image_bytes, frame_bytes)
+            if consistency_threshold is not None and character_reference_bytes is not None:
+                consistency_score = _consistency_score(character_reference_bytes, frame_bytes)
 
         status = "pass"
         if tier1_result != "pass":
@@ -301,6 +309,14 @@ def _generate_voice(run: Run, shot: ShotSpec) -> VoiceGeneration:
     return result
 
 
+def _scene_image_bytes(shot: ShotSpec) -> bytes:
+    """The video provider is image-to-video and requires a starting frame on every call. Shots
+    with no character_refs (pure b-roll/establishing shots) have no cached reference to reuse, so
+    generate a one-off scene image straight from the scene description instead."""
+    url, _ = fal_client.generate_character_image(f"Establishing shot, no characters in frame: {shot.scene_description}")
+    return fal_client.download(url)
+
+
 def regenerate_character(run: Run, shot: ShotSpec) -> dict:
     """Targeted regeneration for shot review — regenerates every character reference this shot
     uses, without touching other shots that may share the same character_id."""
@@ -314,10 +330,11 @@ def regenerate_character(run: Run, shot: ShotSpec) -> dict:
 
 def regenerate_video(run: Run, shot: ShotSpec) -> dict:
     character_ref = latest_for(run.character_references, shot.shot_id)
-    character_bytes = None
     if character_ref is not None:
         character_bytes = fal_client.download(minio_client.presigned_url(character_ref.image_uri))
-    new_video = _generate_video(run, shot, character_bytes)
+        new_video = _generate_video(run, shot, character_bytes, character_bytes)
+    else:
+        new_video = _generate_video(run, shot, _scene_image_bytes(shot), None)
     return {"video_generations": [*run.video_generations, new_video]}
 
 
@@ -333,9 +350,11 @@ def _process_shot(run: Run, shot: ShotSpec, cache: dict, lock: threading.Lock) -
         voice_future = pool.submit(_generate_voice, run, shot) if shot.dialogue_line else None
 
         character_refs = [_generate_character(run, shot, cid, cache, lock) for cid in shot.character_refs]
-        character_uri = character_refs[0].image_uri if character_refs else None
-        character_bytes = fal_client.download(minio_client.presigned_url(character_uri)) if character_uri else None
-        video = _generate_video(run, shot, character_bytes)
+        if character_refs:
+            character_bytes = fal_client.download(minio_client.presigned_url(character_refs[0].image_uri))
+            video = _generate_video(run, shot, character_bytes, character_bytes)
+        else:
+            video = _generate_video(run, shot, _scene_image_bytes(shot), None)
 
         voice = voice_future.result() if voice_future else None
 

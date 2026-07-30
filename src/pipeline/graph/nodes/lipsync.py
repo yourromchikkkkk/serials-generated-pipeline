@@ -76,12 +76,12 @@ def _generate_lipsync(run: Run, shot: ShotSpec, video_bytes: bytes, audio_bytes:
     threshold = run.parameters.get("lipsync_confidence_threshold")
     max_attempts = _max_attempts(run)
 
-    video_data_uri = fal_client.to_data_uri(video_bytes, "video/mp4")
-    audio_data_uri = fal_client.to_data_uri(audio_bytes, "audio/mpeg")
+    video_url = fal_client.upload_bytes(video_bytes, "video/mp4")
+    audio_url = fal_client.upload_bytes(audio_bytes, "audio/mpeg")
 
     attempts: list[LipsyncResult] = []
     for attempt in range(max_attempts):
-        media_url = fal_client.generate_lipsync(video_data_uri, audio_data_uri)
+        media_url = fal_client.generate_lipsync(video_url, audio_url)
         synced_bytes = fal_client.download(media_url)
 
         score = _confidence_score(synced_bytes, shot.duration_sec, transcript) if threshold is not None else None

@@ -119,6 +119,20 @@ class LipsyncResult(BaseModel):
     status: str
 
 
+class AssemblyResult(BaseModel):
+    """Record of the final assembly step — all synced per-shot clips stitched into one
+    deliverable, in shot order, normalized to a single codec/format/frame rate and trimmed/padded
+    to `target_duration_sec`."""
+
+    run_id: str
+    video_uri: str
+    shot_ids: list[str]
+    duration_sec: float
+    format: str
+    codec: str
+    pipeline_version: str
+
+
 class Run(BaseModel):
     run_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     script_text: str
@@ -141,3 +155,4 @@ class Run(BaseModel):
     shot_reviews: list[ShotReview] = Field(default_factory=list)
     lipsync_results: list[LipsyncResult] = Field(default_factory=list)
     lipsync_retry_count: int = 0
+    assembly_result: AssemblyResult | None = None
